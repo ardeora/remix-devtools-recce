@@ -78,7 +78,7 @@ export default function App() {
               <div aria-hidden hidden={!searching} id="search-spinner" />
             </Form>
             <Form method="post">
-              <button type="submit">New</button>
+              <button type="submit">Add</button>
             </Form>
           </div>
           <nav>

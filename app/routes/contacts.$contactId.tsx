@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Form, useFetcher, useLoaderData } from "@remix-run/react";
+import { Form, Outlet, useFetcher, useLoaderData } from "@remix-run/react";
 import invariant from "tiny-invariant";
 
 import type { ContactRecord } from "../data";
