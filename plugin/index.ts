@@ -2,79 +2,29 @@ import type { Plugin, ViteDevServer } from "vite";
 import fs from "fs";
 import { parse } from "@babel/parser";
 import express from "express";
+import { createServer } from "./server";
 // Setup express server
 
 export const devtoolsPlugin: () => Plugin = () => {
-  let server: ViteDevServer;
-  // const PORT = 5175;
-  // const app = express();
+  const PORT = 5175;
 
-  // const val = {
-  //   data: ["hello"],
-  //   version: 1,
-  // };
-
-  // app.get("/loader", (req, res) => {
-  //   return res.json(val);
-  // });
-
-  // app.get("/update_val", (req, res) => {
-  //   val.data.push(req.query.data as string);
-  //   val.version = val.version + 1;
-  //   res.send("ok");
-  // });
-
-  // const s = app.listen(PORT, () => {});
-  // console.log("ADDRESS", s.address());
+  const { listener } = createServer(PORT);
 
   return {
     name: "remix-devtools-plugin",
-    buildStart() {
-      console.log("build start");
-    },
-    handleHotUpdate({ file, server }) {
-      if (file.includes("loader.txt")) {
-        const file = fs.readFileSync("loader.txt", "utf-8");
-        const lines = file
-          .split("\n")
-          .map((line) => {
-            if (line) {
-              return JSON.parse(line);
-            }
-          })
-          .filter(Boolean);
-        server.ws.send("remix-devtools-plugin", {
-          type: "loader",
-          data: lines,
-        });
-      }
-    },
     configureServer(server) {
-      server.ws.on("remix-devtools-plugin", (data: any) => {
-        if (data.type === "init") {
-          const file = fs.readFileSync("loader.txt", "utf-8");
-          const lines = file
-            .split("\n")
-            .map((line) => {
-              if (line) {
-                return JSON.parse(line);
-              }
-            })
-            .filter(Boolean);
-          server.ws.send("remix-devtools-plugin", {
-            type: "loader",
-            data: lines,
-          });
-        }
+      listener.subscribe("loader_stats", () => {
+        server.ws.send("remix-devtools-plugin:loader_stats", {
+          type: "refetch",
+        });
       });
 
-      // server.middlewares.use((req, res, next) => {
-      //   console.log(req.url);
-      //   if (req.url?.includes("/@vite/client")) {
-      //     fs.writeFileSync("loader.txt", "");
-      //   }
-      //   next();
-      // });
+      server.ws.on("remix-devtools-plugin:get_port", () => {
+        server.ws.send("remix-devtools-plugin:port", {
+          type: "port",
+          port: PORT,
+        });
+      });
     },
     transform(code, id, options) {
       if (id.includes("virtual:server-entry")) {
@@ -82,22 +32,11 @@ export const devtoolsPlugin: () => Plugin = () => {
         const edited = code.replace("export const routes", "const route");
         return `
          ${edited}
+         const API_URL = "http://localhost:${PORT}";
          ${loader}
          export const routes = transformRoutes(route);
         `;
-        // console.log("running");
-        // console.log(loader);
-        // const parsed = parse(loader, {
-        //   // parse in strict mode and allow module declarations
-        //   sourceType: "module",
-        //   plugins: ["typescript"],
-        // });
-        // const gen = generate(parsed);
-        // console.log("Generated", gen.code);
       }
-    },
-    transformIndexHtml(html) {
-      console.log(html);
     },
   };
 };

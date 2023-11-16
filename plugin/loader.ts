@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import fs from "fs";
 import crypto from "crypto";
+import { LoaderStatsPayload } from "./server";
 
 type Routes = {
   [key: string]: {
@@ -15,33 +16,23 @@ type Routes = {
   };
 };
 
-type LoaderStartPayload = {
-  key: string;
-  route: string;
-  params: LoaderFunctionArgs["params"];
-  headers: Record<string, string>;
-  type: "start";
-  timestamp: number;
-};
-
-type LoaderEndPayload = {
-  key: string;
-  route: string;
-  params: LoaderFunctionArgs["params"];
-  headers: Record<string, string>;
-  type: "end";
-  timestamp: number;
-  data: any;
-};
-
-type LoaderPayload = LoaderStartPayload | LoaderEndPayload;
-
 const getHeaders = (headers: LoaderFunctionArgs["request"]["headers"]) => {
   const result: { [key: string]: string } = {};
   for (const [key, value] of headers.entries()) {
     result[key] = value;
   }
   return result;
+};
+
+const sendStats = (payload: LoaderStatsPayload) => {
+  // @ts-expect-error
+  fetch(API_URL + "/send_loader_stats", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 };
 
 const transformRoutes = (routes: Routes) => {
@@ -51,15 +42,15 @@ const transformRoutes = (routes: Routes) => {
     if (loader) {
       const transformedLoader = async (params: LoaderFunctionArgs) => {
         const key = crypto.randomUUID();
-        const startPayload: LoaderPayload = {
+        const startPayload: LoaderStatsPayload = {
           key,
           route: id,
+          path: route.path,
           params: params.params,
           headers: getHeaders(params.request.headers),
-          type: "start",
-          timestamp: Date.now(),
+          startedAt: Date.now(),
         };
-        console.log(startPayload);
+        sendStats(startPayload);
         return new Promise((resolve, reject) => {
           loader(params).then((result: any) => {
             result
@@ -67,15 +58,11 @@ const transformRoutes = (routes: Routes) => {
               .json()
               .then((data: any) => {
                 const endPayload = {
-                  key,
-                  route: id,
-                  params: params.params,
-                  headers: getHeaders(params.request.headers),
-                  type: "end",
-                  timestamp: Date.now(),
+                  ...startPayload,
                   data,
+                  endedAt: Date.now(),
                 };
-                console.log(endPayload);
+                sendStats(endPayload);
               });
             resolve(result);
           });
