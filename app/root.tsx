@@ -112,15 +112,10 @@ export default function App() {
             )}
           </nav>
         </div>
-        <div
-          className={
-            navigation.state === "loading" && !searching ? "loading" : ""
-          }
-          id="detail"
-        >
+        <div>
           <Outlet />
         </div>
-        <Devtools />
+        {/* <Devtools /> */}
         <ScrollRestoration />
         <Scripts />
         <LiveReload />
