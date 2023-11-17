@@ -48,6 +48,7 @@ interface LoaderStats extends LoaderStatsPayload {
 const DevtoolsMain = () => {
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
   const [port, setPort] = useState<number | null>(null);
+  const [isReloading, setIsReloading] = useState(false);
   const loader_stats = useQuery({
     queryKey: ["loader_stats"],
     queryFn: async () => {
@@ -57,7 +58,9 @@ const DevtoolsMain = () => {
     enabled: !!port,
     select(data) {
       return data.sort((a, b) => {
-        return b.startedAt - a.startedAt;
+        const diff = b.startedAt - a.startedAt;
+        if (diff !== 0) return diff;
+        return b.route_name.localeCompare(a.route_name);
       });
     },
   });
@@ -82,6 +85,7 @@ const DevtoolsMain = () => {
   useEffect(() => {
     const beforeUnload = () => {
       fetch("http://localhost:5175/reload");
+      setIsReloading(true);
     };
 
     window.addEventListener("beforeunload", beforeUnload);
@@ -121,9 +125,10 @@ const DevtoolsMain = () => {
           <img src="/remix-logo.svg" className="rounded-md"></img>
         </div>
       </div>
+
       <div className="flex-1 flex min-h-0">
         <div className="bg-neutral-900 border-r border-neutral-800 w-12 flex py-2 items-center gap-2 flex-shrink-0 flex-col">
-          <button className="bg-blue-950/90 network-tab h-8 w-8 rounded border border-transparent text-blue-400 flex justify-center items-center">
+          <button className="bg-neutral-800 h-8 w-8 rounded border border-neutral-700 text-neutral-500 flex justify-center items-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -157,7 +162,7 @@ const DevtoolsMain = () => {
               ></path>
             </svg>
           </button>
-          <button className="bg-neutral-800 h-8 w-8 rounded border border-neutral-700 text-neutral-500 flex justify-center items-center">
+          <button className="bg-pink-950/90 h-8 w-8 rounded border border-pink-700 text-pink-500 flex justify-center items-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"
@@ -175,198 +180,93 @@ const DevtoolsMain = () => {
             </svg>
           </button>
         </div>
-        <div className="flex-1 flex">
-          <div className="flex-1 overflow-y-auto flex-col flex">
-            {loader_stats.data &&
-              loader_stats.data.map((message) => {
-                return (
-                  <button
-                    key={message.key}
-                    className="border-b bg-neutral-900 hover:bg-neutral-800 w-full cursor-pointer rounded-none shadow-none border-neutral-800"
-                    onClick={() => {
-                      setSelectedMessage((k) =>
-                        k === message.key ? null : message.key
-                      );
-                    }}
-                  >
-                    <div className="flex items-center py-1 px-2 gap-2.5">
-                      <div
-                        className={`h-4 w-4 rounded-full duration-300 transition ${
-                          message.endedAt
-                            ? "bg-green-900 border border-green-600"
-                            : "bg-yellow-900 border border-yellow-500"
-                        }`}
-                      ></div>
-                      <div className="text-xs text-neutral-400 font-mono">
-                        {message.route_name}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-          {selectedMessage && selectedLoader && (
-            <div className="flex-1 flex flex-col border-l border-neutral-700 min-h-0 overflow-y-auto">
-              <div className="py-1 text-sm text-neutral-400 font-medium px-2 bg-neutral-800">
-                Loader Details
-              </div>
-              <div className="p-2">
-                <div
-                  className={`h-16 rounded-md border-2 text-sm flex items-center justify-center font-medium ${
-                    selectedLoader.endedAt
-                      ? "border-green-600 bg-green-950 text-green-400"
-                      : "border-yellow-400 bg-yellow-300 text-yellow-900"
-                  }`}
-                >
-                  {selectedLoader.endedAt ? "Success" : "Pending"}
-                </div>
-              </div>
-              <div className="py-1 text-sm text-neutral-400 font-medium px-2 bg-neutral-800">
-                Loader Data
-              </div>
-              <div className="text-sm text-gray-600">
-                <pre className="p-2 break-all">
-                  {JSON.stringify(selectedLoader.data ?? {}, null, 2)}
-                </pre>
-              </div>
-              <div className="py-1 text-sm text-gray-700 font-medium px-2 bg-gray-100">
-                Headers
-              </div>
-              <div className="text-sm text-gray-600">
-                <div className="flex bg-gray-100 border-y border-gray-300">
-                  <div className="flex-1 flex-shrink-0 px-2 py-1 border-r border-gray-300">
-                    Key
-                  </div>
-                  <div className="flex-1 flex-shrink-0 px-2 py-1">Value</div>
-                </div>
-                {Object.entries(selectedLoader.headers).map(([key, value]) => {
+        {!isReloading && (
+          <div className="flex-1 flex">
+            <div className="flex-1 overflow-y-auto flex-col flex">
+              {loader_stats.data &&
+                loader_stats.data.map((message) => {
                   return (
-                    <div key={key} className="flex border-b border-gray-300">
-                      <div className="flex-1 min-w-1/2 font-medium flex-shrink-0 px-2 py-1 border-r border-gray-300">
-                        {key}
+                    <button
+                      key={message.key}
+                      className="border-b bg-neutral-900 hover:bg-neutral-800 w-full cursor-pointer rounded-none shadow-none border-neutral-800"
+                      onClick={() => {
+                        setSelectedMessage((k) =>
+                          k === message.key ? null : message.key
+                        );
+                      }}
+                    >
+                      <div className="flex items-center py-1 px-2 gap-2.5">
+                        <div
+                          className={`h-4 w-4 rounded-full duration-300 transition ${
+                            message.endedAt
+                              ? "bg-green-900 border border-green-600"
+                              : "bg-yellow-900 border border-yellow-500"
+                          }`}
+                        ></div>
+                        <div className="text-xs text-neutral-400 font-mono">
+                          {message.route_name}
+                        </div>
                       </div>
-                      <div className="flex-1 px-2 py-1 break-all">{value}</div>
-                    </div>
+                    </button>
                   );
                 })}
-              </div>
             </div>
-          )}
-        </div>
-        {/* <div className="flex-1 flex min-h-0">
-        <div className="bg-gray-900 border-r border-gray-300 w-12 flex py-2 items-center gap-2 flex-shrink-0 flex-col">
-          <div className="bg-gray-200 h-8 w-8 rounded border border-gray-300 text-gray-600 flex justify-center items-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10m0-20a15.3 15.3 0 00-4 10 15.3 15.3 0 004 10m0-20C6.477 2 2 6.477 2 12s4.477 10 10 10m0-20c5.523 0 10 4.477 10 10s-4.477 10-10 10M2.5 9h19m-19 6h19"
-              ></path>
-            </svg>
-          </div>
-          <div className="bg-gray-200 h-8 w-8 rounded border border-gray-300 text-gray-600 flex justify-center items-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10m0-20a15.3 15.3 0 00-4 10 15.3 15.3 0 004 10m0-20C6.477 2 2 6.477 2 12s4.477 10 10 10m0-20c5.523 0 10 4.477 10 10s-4.477 10-10 10M2.5 9h19m-19 6h19"
-              ></path>
-            </svg>
-          </div>
-        </div>
-        <div className="flex-1 flex">
-          <div className="flex-1 overflow-y-auto flex-col flex">
-            {loader_stats.data &&
-              loader_stats.data.map((message) => {
-                return (
-                  <button
-                    key={message.key}
-                    className="border-b hover:bg-gray-200 w-full cursor-pointer rounded-none shadow-none border-gray-300 px-2 py-1"
-                    onClick={() => {
-                      setSelectedMessage((k) =>
-                        k === message.key ? null : message.key
-                      );
-                    }}
+            {selectedMessage && selectedLoader && (
+              <div className="flex-1 flex flex-col border-l border-neutral-700 min-h-0 overflow-y-auto">
+                <div className="py-1 text-sm text-neutral-400 font-medium px-2 bg-neutral-800">
+                  Loader Details
+                </div>
+                <div className="p-2">
+                  <div
+                    className={`h-16 rounded-md border-2 text-sm flex items-center justify-center font-medium ${
+                      selectedLoader.endedAt
+                        ? "border-green-600 bg-green-950 text-green-400"
+                        : "border-yellow-400 bg-yellow-300 text-yellow-900"
+                    }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`h-5 w-5 rounded ${
-                          message.endedAt ? "bg-lime-500" : "bg-yellow-500"
-                        }`}
-                      ></div>
-                      <div className="text-sm text-gray-600">
-                        {message.route_name}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-          {selectedMessage && selectedLoader && (
-            <div className="flex-1 flex flex-col border-l border-gray-300 min-h-0 overflow-y-auto">
-              <div className="py-1 text-sm text-gray-700 font-medium px-2 bg-gray-100">
-                Loader Details
-              </div>
-              <div className="p-2">
-                <div
-                  className={`h-16 rounded border-2 text-sm flex items-center justify-center font-medium ${
-                    selectedLoader.endedAt
-                      ? "border-lime-400 bg-lime-300 text-lime-800"
-                      : "border-yellow-400 bg-yellow-300 text-yellow-900"
-                  }`}
-                >
-                  {selectedLoader.endedAt ? "Success" : "Pending"}
-                </div>
-              </div>
-              <div className="py-1 text-sm text-gray-700 font-medium px-2 bg-gray-100">
-                Loader Data
-              </div>
-              <div className="text-sm text-gray-600">
-                <pre className="p-2 break-all">
-                  {JSON.stringify(selectedLoader.data ?? {}, null, 2)}
-                </pre>
-              </div>
-              <div className="py-1 text-sm text-gray-700 font-medium px-2 bg-gray-100">
-                Headers
-              </div>
-              <div className="text-sm text-gray-600">
-                <div className="flex bg-gray-100 border-y border-gray-300">
-                  <div className="flex-1 flex-shrink-0 px-2 py-1 border-r border-gray-300">
-                    Key
+                    {selectedLoader.endedAt ? "Success" : "Pending"}
                   </div>
-                  <div className="flex-1 flex-shrink-0 px-2 py-1">Value</div>
                 </div>
-                {Object.entries(selectedLoader.headers).map(([key, value]) => {
-                  return (
-                    <div key={key} className="flex border-b border-gray-300">
-                      <div className="flex-1 min-w-1/2 font-medium flex-shrink-0 px-2 py-1 border-r border-gray-300">
-                        {key}
-                      </div>
-                      <div className="flex-1 px-2 py-1 break-all">{value}</div>
+                <div className="py-1 text-sm text-neutral-400 font-medium px-2 bg-neutral-800">
+                  Loader Data
+                </div>
+                <div className="text-sm text-gray-600">
+                  <pre className="p-2 break-all">
+                    {JSON.stringify(selectedLoader.data ?? {}, null, 2)}
+                  </pre>
+                </div>
+                <div className="py-1 text-sm text-gray-700 font-medium px-2 bg-gray-100">
+                  Headers
+                </div>
+                <div className="text-sm text-gray-600">
+                  <div className="flex bg-gray-100 border-y border-gray-300">
+                    <div className="flex-1 flex-shrink-0 px-2 py-1 border-r border-gray-300">
+                      Key
                     </div>
-                  );
-                })}
+                    <div className="flex-1 flex-shrink-0 px-2 py-1">Value</div>
+                  </div>
+                  {Object.entries(selectedLoader.headers).map(
+                    ([key, value]) => {
+                      return (
+                        <div
+                          key={key}
+                          className="flex border-b border-gray-300"
+                        >
+                          <div className="flex-1 min-w-1/2 font-medium flex-shrink-0 px-2 py-1 border-r border-gray-300">
+                            {key}
+                          </div>
+                          <div className="flex-1 px-2 py-1 break-all">
+                            {value}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div> */}
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

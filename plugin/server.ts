@@ -44,13 +44,24 @@ class PubSub {
 
 const addRouteName = (payload: LoaderStatsPayload) => {
   const params = payload.params;
-  let route_name = "/" + payload.path;
+  let route_name = payload.route;
+
+  if (route_name === "root") {
+    return {
+      ...payload,
+      route_name: "/",
+    };
+  }
+
+  route_name = "/" + route_name.replace("routes/", "");
 
   Object.entries(params).forEach(([key, value]) => {
     if (value) {
-      route_name = route_name.replace(`:${key}`, value);
+      route_name = route_name.replace(`$${key}`, value);
     }
   });
+
+  route_name = route_name.replace(/\./g, "/");
 
   return {
     ...payload,
